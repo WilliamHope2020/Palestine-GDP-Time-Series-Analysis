@@ -1,0 +1,164 @@
+---
+title: "assignment4"
+output: pdf_document
+date: "2023-02-06"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+```{r}
+dat <- read.csv("RealGDP.csv")
+set.seed(20885971)
+code <- sample(names(dat)[-1],1)
+code
+```
+
+```{r}
+allCodes <- read.csv("countryCodes.csv")
+country <- allCodes[which(allCodes[,3]==code),1]
+country
+```
+
+# Question 1
+```{r}
+gdp <- ts(dat[,code], start=1961, frequency=1)
+save(gdp, code, country, file="PSE_data.rda")
+load("PSE_data.rda")
+
+main <- paste("Palestine Territory - Real GDP", country, sep="")
+plot(gdp, main=main, ylab='Int. $', col='darkblue', lwd=2)
+grid()
+
+t <- time(gdp)
+D <- as.numeric(t<=1975)
+fit1 <- lm(gdp~t)
+fit2 <- lm(gdp~t+I(tˆ2))
+fit3 <- lm(gdp~t*D)
+lin <- ts(fitted(fit1), start=1961)
+quad <- ts(fitted(fit2), start=1961)
+pwlin <- ts(fitted(fit3), start=1961)
+main <- paste("Real GDP for ", country, sep="")
+plot(gdp, main="Palestine Territory - Real GDP", type='l', xlab='Time (in Years)', ylab='Real GDP')
+lines(lin, col="darkgreen", lwd=2, lty=2)
+lines(quad, col="darkorange", lwd=2, lty=2)
+lines(pwlin, col="darkred", lwd=2, lty=2)
+grid()
+legend("topleft", c("linear","quadratic","piecewise linear"),
+col=c("darkgreen","darkorange","darkred"), lwd=2, lty=2, bty='n', cex=.8)
+
+```
+
+There appears to be positive autocorrelation. In addition, the data is trending in a linear fashion. Furthermore, after 1980, we can see that there are huge spikes that likely indicate persistence.
+
+# Question 2
+```{r}
+acf(gdp, lag.max=40, main="Palestine Territory - Real GDP")
+
+```
+
+The level of persistence appears to stop positively prior to year 10, then goes negative. Yes, I am surprised because the previous graph looked like there was more persistence (big jumps) in the later years of the data.
+
+# Question 3
+```{r}
+t <- time(gdp)
+fit <- lm(gdp~t)
+b <- coef(fit)
+gdt <- gdp-b[1]-b[2]*t
+plot(gdt, main="Palestine Territory - Detrended Real GDP")
+acf(gdt, main="Palestine Territory - Detrended Real GDP")
+```
+
+We can see that the detrended TS of Palestine's territory Palestine territory's GDP, there is still persistence. It is does not look stationary and the persistence is still too much. 
+
+# Question 4
+```{r}
+t <- time(gdp)
+fit <- lm(log(gdp)~t+I(t^2))
+b <- coef(fit)
+trend <- b[1]+b[2]*t+b[3]*t^2
+plot(log(gdp)-trend, main="Detrended Palestine Territory Real GDP with quadratic")
+acf(log(gdp)-trend, main="Detrended Palestine Territory Real GDP with quadratic")
+
+```
+
+We can see that the detrended quadratic TS of Palestine territory's GDP, there is still persistence. There appears to be negative persistence as well.
+
+# Question 5
+```{r}
+Dgdp <- diff(log(gdp))
+plot(Dgdp, main="First Difference of Palestine Territory Real log-GDP")
+acf(Dgdp, main="First Difference of Palestine Territory Real log-GDP")
+
+t <- time(Dgdp)
+fit <- lm(Dgdp~t)
+knitr::kable(summary(fit)$coef)
+
+trend <- coef(fit)[1]+coef(fit)[2]*t
+plot(Dgdp-trend, main="First Difference of Palestine Territory Real log-GDP")
+acf(Dgdp-trend, main="First Difference of Palestine Territory Real log-GDP")
+
+```
+
+There appears to be less persistence compared to the last graphs we looked at. The lag ends around 10. When we remove the trend in b), there is only a slight change, and the persistence level is about the same. 
+
+# Question 6a
+```{r}
+dat1 <- read.csv("RealGDP.csv")
+
+# Changing my Student ID to a number 1 less to get a different country
+set.seed(20885970)
+code <- sample(names(dat)[-1],1)
+code
+
+allCodes <- read.csv("countryCodes.csv")
+country2 <- allCodes[which(allCodes[,3]==code),1]
+country2
+
+gdp2 <- ts(dat[,code], start=1961, frequency=1)
+save(gdp2, code, country, file="CPV_data.rda")
+load("CPV_data.rda")
+
+GDP_comparison <- log(na.omit(cbind(gdp, gdp2)))
+plot(GDP_comparison[,1], ylab="log-gdp", main="Real Log GDP of Palestine")
+plot(GDP_comparison[,2], ylab="log-gdp", main="Real Log GDP of Cape Verde")
+
+fit <- lm(gdp~gdp2, GDP_comparison)
+knitr::kable(summary(fit)$coef)
+
+```
+The countries' time series data appear to be correlated but not because there is significant trade or relationships between them. If we look at Cape Verde, like many other countries, real GDP increases over time. This means that the correlation we see does not imply each country directly causes another country's GDP to increase. 
+
+# Question 6b
+```{r}
+library(tseries)
+
+Dgdp <- diff(log(gdp))
+Dgdp2 <- diff(log(gdp2))
+
+plot(Dgdp, main="First difference of Dgdp")
+acf(Dgdp, main="First difference of Dgdp")
+
+plot(Dgdp2, main="First difference of Dgdp2")
+acf(Dgdp2, main="First difference of Dgdp2")
+
+adf.test(Dgdp)
+adf.test(Dgdp2)
+
+DDgdp <- diff(Dgdp)
+
+plot(DDgdp, main="Second difference of Dgdp")
+acf(DDgdp, main="Second difference of Dgdp")
+
+fit <- lm(Dgdp2~Dgdp, dat1)
+knitr::kable(summary(fit)$coef)
+
+dat2 <- cbind(Dgdp2, DDgdp)
+fit <- lm(Dgdp2~DDgdp, dat2)
+knitr::kable(summary(fit)$coef)
+
+```
+
+Even when taking the second difference of Real GDP of Palestine, there is still persistence. We could continue but the issue of persistence still occurs. 
